@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Application;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -14,18 +15,21 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \App\Http\Middleware\ForceJsonResponse::class,
         ]);
 
         $middleware->statefulApi();
 
         $middleware->trustProxies(at: '*');
-
-        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn () => true);
 
         $exceptions->render(function (NotFoundHttpException $e) {
             return response()->json(['message' => 'Not Found.'], 404);
+        });
+
+        $exceptions->render(function (AuthenticationException $e) {
+            return response()->json(['message' => $e->getMessage()], 401);
         });
     })->create();
